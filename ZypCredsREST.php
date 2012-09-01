@@ -33,7 +33,7 @@ class ZypCredsREST{
 	# URIs
 	private $verify_uri		= 'http://api.zypcreds.com/verify/';
 	private $whitelist_uri 	= 'http://api.zypcreds.com/whitelist/';
-	private $blacklist_uri 	= 'http://api.zypcreds.com/blacklist/'
+	private $blacklist_uri 	= 'http://api.zypcreds.com/blacklist/';
 
 	# Values
 	public $prepped_index;
@@ -45,7 +45,7 @@ class ZypCredsREST{
 
 	# Settings
 	private $timeout = 30;
-	private $accept_type = 'json';	# JSON XML
+	private $accept_type = 'json';	# Default return type
 
 	
 	# ----------------------------------------------
@@ -100,7 +100,7 @@ class ZypCredsREST{
 		$data = $this->call_uri( $params, $this->verify_uri, 'post' );
 
 		# Parse the returned content and place values within class.
-		$this->parse_xml( $data );
+		$this->parse_data( $data );
 		
 		return $data;
 	}
@@ -129,7 +129,7 @@ class ZypCredsREST{
 		$data = $this->call_uri( $params, $this->verify_uri, 'put' );
 		
 		# Parse the result
-		$this->parse_xml( $data );
+		$this->parse_data( $data );
 
 		# Return raw response
 		return $data;
@@ -154,7 +154,7 @@ class ZypCredsREST{
 		$response = $this->call_uri( $params, $this->whitelist_uri, 'get' );
 
 		# Parse result and place values in variables.
-		$this->parse_xml( $response );
+		$this->parse_data( $response );
 
 		return $response;
 	}
@@ -182,7 +182,7 @@ class ZypCredsREST{
 		$data = $this->call_uri( $params, $this->whitelist_uri, 'post' );
 
 		# Parse data and assign values to variables
-		$this->parse_xml( $data );
+		$this->parse_data( $data );
 
 		# Returning incase they want to see raw xml/json
 		return $data;
@@ -211,7 +211,7 @@ class ZypCredsREST{
 		$data = $this->call_uri( $params, $this->whitelist_uri, 'delete' );
 
 		# Parse data and assign values to variables
-		$this->parse_xml( $data );
+		$this->parse_data( $data );
 
 		return $data;
 	}
@@ -235,7 +235,7 @@ class ZypCredsREST{
 		$response = $this->call_uri( $params, $this->blacklist_uri, 'get' );
 
 		# Parse result and place values in variables.
-		$this->parse_xml( $response );
+		$this->parse_data( $response );
 
 		return $response;
 	}
@@ -300,15 +300,25 @@ class ZypCredsREST{
 		
 		# Set accept header
 		if( $this->accept_type == 'json' ){
-			curl_setopt($cURL, CURLOPT_HTTPHEADER, array ( "Accept: application/json" ) );
+			curl_setopt($ch, CURLOPT_HTTPHEADER, array ( "Accept: application/json" ) );
 		}else{
-			curl_setopt($cURL, CURLOPT_HTTPHEADER, array ( "Accept: text/xml" ) );
+			curl_setopt($ch, CURLOPT_HTTPHEADER, array ( "Accept: text/xml" ) );
 		}
 
 		# Execute curl
 		$data = curl_exec( $ch );
 		curl_close ( $ch );
 		return $data;
+	}
+
+
+	private function parse_data( $data ){
+		
+		if( $this->accept_type == 'json' ){
+			$this->parse_json( $data );
+		}else{
+			$this->parse_xml( $data );
+		}
 	}
 
 
@@ -326,9 +336,9 @@ class ZypCredsREST{
 		$obj = new SimpleXMLElement( $xml );
 		
 		# Use (string) or (int) or SimpleXMLElement passes an object and causes SESSION fail.
-		$this->result_bool = 	(string)$obj->result['bool'];
-		$this->result_desc = 	(string)$obj->result[0];
 		$this->prepped_index = 	(string)$obj->index['prepped'];
+		$this->result_bool = 	(string)$obj->result['bool'];
+		$this->result_desc = 	(string)$obj->result['description'];
 		$this->error_no = 		(string)$obj->error['number'];
 		$this->error_desc = 	(string)$obj->error['description'];
 
@@ -343,25 +353,17 @@ class ZypCredsREST{
 	 **/
 	private function parse_json( $json ){
 
-		# PARSE THE JSON
+		if( !$json ){ return false; }
+
 		$x = json_decode($json, true);
-		
-		foreach( $json as $k => $v ){
-			error_log( $k.'-'.$v );
-		}
+		$x = $x['zypcreds'];
 
-		//$x['result']['bool'];
+		$this->prepped_index = 	(string)$x['index']['prepped'];
+		$this->result_bool = 	(string)$x['result']['bool'];
+		$this->result_desc = 	(string)$x['result']['description'];
+		$this->error_no = 		(string)$x['error']['number'];
+		$this->error_desc = 	(string)$x['error']['description'];
 
-		// $this->result_bool = 	(string)$x['result']['bool'];
-		// $this->result_desc = 	(string)$x['result']['description'];
-		// $this->prepped_index = 	(string)$x['index']['prepped'];
-		// $this->error_no = 		(string)$x['error']['number'];
-		// $this->error_desc = 	(string)$x['error']['description'];
-
-
-		// foreach ($json_a as $person_name => $person_a) {
-  //   		echo $person_a['status'];
-		// }
 	}
 
 	
