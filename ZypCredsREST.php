@@ -31,8 +31,9 @@ class ZypCredsREST{
 	private $api_key = '';
 
 	# URIs
-	private $verify_uri		= 'http://api.zypcreds.com/verify/xml';
-	private $whitelist_uri 	= 'http://api.zypcreds.com/whitelist/xml';
+	private $verify_uri		= 'http://api.zypcreds.com/verify/';
+	private $whitelist_uri 	= 'http://api.zypcreds.com/whitelist/';
+	private $blacklist_uri 	= 'http://api.zypcreds.com/blacklist/'
 
 	# Values
 	public $prepped_index;
@@ -44,7 +45,7 @@ class ZypCredsREST{
 
 	# Settings
 	private $timeout = 30;
-	private $response_content = 'json';
+	private $accept_type = 'json';	# JSON XML
 
 	
 	# ----------------------------------------------
@@ -106,12 +107,12 @@ class ZypCredsREST{
 
 
 	/**
-	* attempt_verification( $index, $code )
-	* Summary: Check if $code provided is a valid verification code for the $index provided.
-	* @param 	str 	$index 	The index you wish to verify.
-	* @param 	str 	$code 	Code entered by user.
-	* @return 	str 	$response 	Returned content from uri call.
-	*/
+	 * attempt_verification( $index, $code )
+	 * Summary: Check if $code provided is a valid verification code for the $index provided.
+	 * @param 	str 	$index 		The index you wish to verify.
+	 * @param 	str 	$code 		Code entered by user.
+	 * @return 	str 	$response 	Returned content from uri call.
+	 **/
 	function attempt_verification( $index, $code ){
 
 		# Check for required parameters.
@@ -140,11 +141,11 @@ class ZypCredsREST{
 	# ----------------------
 
 	/**
-	* get_whitelist()
-	* Summary: Fetch the whitelist for the current api_id
-	* @return 	str 	$response 	Content from uri call.
-	*/
-	function get_whitelist( ){
+	 * get_whitelist()
+	 * Summary: Fetch the whitelist for the current api_id
+	 * @return 	str 	$response 	Content from uri call.
+	 */
+	function get_whitelist(){
 
 		# No parameters. - Pass empty array
 		$params = array();
@@ -160,11 +161,11 @@ class ZypCredsREST{
 
 
 	/**
-	* add_index_to_whitelist( )
-	* Summary: Attempts to add the provided index to the api_ids whitelist.
-	* @param 	str 	$index 	The index wished to be added to the whitelist.
-	* @return 	str 	$data 	The result data from the ->call_uri()
-	*/
+	 * add_index_to_whitelist( )
+	 * Summary: Attempts to add the provided index to the api_ids whitelist.
+	 * @param 	str 	$index 	The index wished to be added to the whitelist.
+	 * @return 	str 	$data 	The result data from the ->call_uri()
+	 **/
 	function add_index_to_whitelist( $index ){
 
 		# Check for required parameters.
@@ -189,11 +190,11 @@ class ZypCredsREST{
 
 
 	/**
-	* delete_index_from_whitelist()
-	* Summary: Attempts to delete the provided index from the api_ids whitelist.
-	* @param 	str 	$index 	The index wished to be deleted from the whitelist.
-	* @return 	str 	$data  	The resulting data from the ->call_uri()
-	*/
+	 * delete_index_from_whitelist()
+	 * Summary: Attempts to delete the provided index from the api_ids whitelist.
+	 * @param 	str 	$index 	The index wished to be deleted from the whitelist.
+	 * @return 	str 	$data  	The resulting data from the ->call_uri()
+	 **/
 	function delete_index_from_whitelist( $index ){
 
 		# Check for required parameters
@@ -216,18 +217,42 @@ class ZypCredsREST{
 	}
 
 
+	# ----------------------
+	## BLACKLIST API METHODS
+	# ----------------------
+
+	/**
+	 * get_blacklist()
+	 * Summary: Fetch the blacklist for the current api_id
+	 * @return 	str 	$response 	Content from uri call.
+	 */
+	function get_blacklist(){
+
+		# No parameters. - Pass empty array
+		$params = array();
+
+		# Attempt to fetch whitelist
+		$response = $this->call_uri( $params, $this->blacklist_uri, 'get' );
+
+		# Parse result and place values in variables.
+		$this->parse_xml( $response );
+
+		return $response;
+	}
+
+
 	# ---------------------------------
 	## PRIVATE METHODS / HELPER METHODS
 	# ---------------------------------
 
 	/**
-	* call_uri( $data, $uri, $verb )
-	* Summary: Makes a CURL call to the $uri provided and returns the resulting content.
-	* @param 	array 	$data 	Parameters passed by user.
-	* @param 	str 	$uri 	URI to call.
-	* @param 	str 	$verb 	Form submission method - GET POST PUT DELETE
-	* @return 	str 	$data 	Resulting content (XML or JSON)
-	*/
+	 * call_uri( $data, $uri, $verb )
+	 * Summary: Makes a CURL call to the $uri provided and returns the resulting content.
+	 * @param 	array 	$data 	Parameters passed by user.
+	 * @param 	str 	$uri 	URI to call.
+	 * @param 	str 	$verb 	Form submission method - GET POST PUT DELETE
+	 * @return 	str 	$data 	Resulting content (XML or JSON)
+	 **/
 	private function call_uri( $data, $uri, $verb ){
 
 		# Affix api id to params list
@@ -239,10 +264,8 @@ class ZypCredsREST{
 		# Affix hash to params list
 		$data = array_merge($data, array('hash' => $hash));
 
-		error_log('uri_params == ' . http_build_query($data) );
-		
-		# INITIATE CURL
-		$ch = curl_init( );
+		# Start curl
+		$ch = curl_init();
 		
 		# Decide verb
 		switch( $verb ){
@@ -274,8 +297,15 @@ class ZypCredsREST{
 		curl_setopt( $ch, CURLOPT_URL, $uri );
 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt( $ch, CURLOPT_CONNECTTIMEOUT, $this->timeout);
+		
+		# Set accept header
+		if( $this->accept_type == 'json' ){
+			curl_setopt($cURL, CURLOPT_HTTPHEADER, array ( "Accept: application/json" ) );
+		}else{
+			curl_setopt($cURL, CURLOPT_HTTPHEADER, array ( "Accept: text/xml" ) );
+		}
 
-		# EXECUTE CURL
+		# Execute curl
 		$data = curl_exec( $ch );
 		curl_close ( $ch );
 		return $data;
@@ -306,23 +336,41 @@ class ZypCredsREST{
 
 
 	/**
-	* parse_json
-	* Summary:
-	* @param 	str 	$json 	The resulting JSON content.
-	* @return 	void
-	**/
-	function parse_json( $json ){
+	 * parse_json
+	 * Summary:
+	 * @param 	str 	$json 	The resulting JSON content.
+	 * @return 	void
+	 **/
+	private function parse_json( $json ){
 
 		# PARSE THE JSON
+		$x = json_decode($json, true);
+		
+		foreach( $json as $k => $v ){
+			error_log( $k.'-'.$v );
+		}
+
+		//$x['result']['bool'];
+
+		// $this->result_bool = 	(string)$x['result']['bool'];
+		// $this->result_desc = 	(string)$x['result']['description'];
+		// $this->prepped_index = 	(string)$x['index']['prepped'];
+		// $this->error_no = 		(string)$x['error']['number'];
+		// $this->error_desc = 	(string)$x['error']['description'];
+
+
+		// foreach ($json_a as $person_name => $person_a) {
+  //   		echo $person_a['status'];
+		// }
 	}
 
 	
 	/**
-	* create_hash( $data )
-	* Summary: Creates a hash value from the params passed to it.
-	* @param 	arr 	$data 	Parameters from user.
-	* @return 	str 	$hash 	The properly hashed value from using params and the api_key
-	*/
+	 * create_hash( $data )
+	 * Summary: Creates a hash value from the params passed to it.
+	 * @param 	arr 	$data 	Parameters from user.
+	 * @return 	str 	$hash 	The properly hashed value from using params and the api_key
+	 **/
 	private function create_hash( $data ){
 
 		$str = '';
