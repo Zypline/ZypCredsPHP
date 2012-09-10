@@ -245,6 +245,7 @@ class ZypCredsREST{
 	## PRIVATE METHODS / HELPER METHODS
 	# ---------------------------------
 
+
 	/**
 	 * call_uri( $data, $uri, $verb )
 	 * Summary: Makes a CURL call to the $uri provided and returns the resulting content.
@@ -354,7 +355,6 @@ class ZypCredsREST{
 	private function parse_json( $json ){
 
 		if( !$json ){ return false; }
-
 		$x = json_decode($json, true);
 		$x = $x['zypcreds'];
 
@@ -363,7 +363,6 @@ class ZypCredsREST{
 		$this->result_desc = 	(string)$x['result']['description'];
 		$this->error_no = 		(string)$x['error']['number'];
 		$this->error_desc = 	(string)$x['error']['description'];
-
 	}
 
 	
