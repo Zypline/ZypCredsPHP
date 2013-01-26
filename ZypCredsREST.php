@@ -2,14 +2,17 @@
 /**
  * Class ZypCredsREST
  * Summary: A libary which handles requests for ZypCreds REST API. 
- * Version: 0.6
+ * Version: 0.7
  * Authors: Greg Kasbarian
- * Initial Release Date: n/a
+ * Release Date Version 1.0: n/a
  *
+ * Methods: 
+ * 
+ * 	request_verification( $index, $ip )
+ * 	attempt_verification( $index, $code, $ip )
  *
- * 	request_verification( $index )
- * 	attempt_verification( $index, $code )
- *
+ *	check_token( $index, $token, $ip )
+ * 
  *	get_whitelist()
  *	add_to_whitelist( $index )
  *	delete_from_whitelist( $index )
@@ -18,33 +21,48 @@
  *	add_to_blacklist( $index )
  *	delete_from_blacklist( $index )
  *
+ *  ---
+ *  
  *	call_uri()
+ *	parse_data()
  *	parse_xml()
  *	parse_json()
+ *	create_hash()
  *	
  **/
 
 class ZypCredsREST{
 	
 	# Your API Credentials
-	private $api_id  = ''; # Place your api ID  here <---
-	private $api_key = ''; # Place your api KEY here <---
+	private $api_id  = ''; # Place your api ID  here <---		** ATTENTION **
+	private $api_key = ''; # Place your api KEY here <---		** ATTENTION **
 
 	# ---
 
 	# URIs
 	private $verify_uri		= 'http://api.zypcreds.com/verify/';
+	private $token_uri 		= 'http://api.zypcreds.com/token/';
 	private $whitelist_uri 	= 'http://api.zypcreds.com/whitelist/';
 	private $blacklist_uri 	= 'http://api.zypcreds.com/blacklist/';
 
 	# Values
+	public $raw_index;
+	public $raw_country;
+	public $raw_ip;
+	
 	public $prepped_index;
+	public $friendly_index;
+	public $secret_code;
+	
+	public $token;
+	public $token_expiration;
+	public $token_bool;
+	
 	public $result_desc;
 	public $result_bool;
 	public $error_no;	
 	public $error_desc;
-	public $secret_code;
-
+	
 	# Settings
 	private $timeout = 30;
 	private $accept_type = 'json';	# Default return type
@@ -86,17 +104,17 @@ class ZypCredsREST{
 	 * @return 	bool 	False 	Error occurred - error number and description set.
 	 * @return 	obj 	$data 	Raw-content returned from ->call_uri() call.
 	 **/
-	function request_verification( $index ){
+	function request_verification( $index, $ip ){
 
 		# Check for required values
-		if( !$index ){
-			$this->error_no = '1';
-			$this->error = 'Missing required parameters.';
-			return false;
-		}
+		// if( !$index || !$ip ){
+		// 	$this->error_no = '1';
+		// 	$this->error = 'Missing required parameters.';
+		// 	return false;
+		// }
 
 		# Prep params
-		$params = array( 'index' => $index );
+		$params = array( 'index' => $index, 'ip' => $ip );
 
 		# Initiate request and gather response.
 		$data = $this->call_uri( $params, $this->verify_uri, 'post' );
@@ -107,7 +125,6 @@ class ZypCredsREST{
 		return $data;
 	}
 
-
 	/**
 	 * attempt_verification()
 	 * Summary: Check if $code provided is a valid verification code for the $index provided.
@@ -115,7 +132,7 @@ class ZypCredsREST{
 	 * @param 	str 	$code 		Code entered by user.
 	 * @return 	str 	$response 	Returned content from uri call.
 	 **/
-	function attempt_verification( $index, $code ){
+	function attempt_verification( $index, $code, $ip ){
 
 		# Check for required parameters.
 		if( !$index || !$code ){
@@ -125,7 +142,7 @@ class ZypCredsREST{
 		}
 
 		# Prep params
-		$params = array( 'index' => $index, 'code' => $code );
+		$params = array( 'index' => $index, 'code' => $code, 'ip' => $ip );
 
 		# Attempt to verify the code entered by the user
 		$data = $this->call_uri( $params, $this->verify_uri, 'put' );
@@ -137,7 +154,38 @@ class ZypCredsREST{
 		return $data;
 	}
 
+	# ------------------
+	## TOKEN API METHODS
+	# ------------------
+	
+	/**
+	 * check_token()
+	 * @param  str $index Index who's session we're checking.
+	 * @param  str $token Session token that we're checking.
+	 * @return bool / response data
+	 **/
+	function check_token( $index, $token, $ip ){
 
+		# Check for required params
+		if( !$index || !$token ){
+			$this->error_no = '1';
+			$this->error_desc = 'Missing required paramaters';
+			return false;
+		}
+
+		# Prep params 
+		$params = array( 'index' => $index, 'token' => $token, 'ip' => $ip );
+
+		# Check if index/token (along with API ID and timestamp) is valid.
+		$data = $this->call_uri( $params, $this->token_uri, 'post');
+
+		# Parse the result
+		$this->parse_data( $data );
+
+		# Retun raw response
+		return $data;
+	}
+	
 	# ----------------------
 	## WHITELIST API METHODS
 	# ----------------------
@@ -146,7 +194,7 @@ class ZypCredsREST{
 	 * get_whitelist()
 	 * Summary: Fetch the whitelist for the current api_id
 	 * @return 	str 	$response 	Content from uri call.
-	 */
+	 **/
 	function get_whitelist(){
 
 		# No parameters. - Pass empty array
@@ -160,7 +208,6 @@ class ZypCredsREST{
 
 		return $response;
 	}
-
 
 	/**
 	 * add_index_to_whitelist( )
@@ -189,7 +236,6 @@ class ZypCredsREST{
 		# Returning incase they want to see raw xml/json
 		return $data;
 	}
-
 
 	/**
 	 * delete_index_from_whitelist()
@@ -227,7 +273,7 @@ class ZypCredsREST{
 	 * get_blacklist()
 	 * Summary: Fetch the blacklist for the current api_id
 	 * @return 	str 	$response 	Content from uri call.
-	 */
+	 **/
 	function get_blacklist(){
 
 		# No parameters. - Pass empty array
@@ -242,11 +288,65 @@ class ZypCredsREST{
 		return $response;
 	}
 
+	/**
+	 * add_index_to_blacklist( )
+	 * Summary: Attempts to add the provided index to the api_ids blacklist.
+	 * @param 	str 	$index 	The index wished to be added to the blacklist.
+	 * @return 	str 	$data 	The result data from the ->call_uri()
+	 **/
+	function add_index_to_blacklist( $index ){
+
+		# Check for required parameters.
+		if( !$index ){
+			$this->error_no = '1';
+			$this->error_desc = 'Missing required parameters.';
+			return false;
+		}
+
+		# Prep params
+		$params = array( 'index' => $index );
+		
+		# Attempt to add index to whitelist
+		$data = $this->call_uri( $params, $this->blacklist_uri, 'post' );
+
+		# Parse data and assign values to variables
+		$this->parse_data( $data );
+
+		# Returning incase they want to see raw xml/json
+		return $data;
+	}
+
+	/**
+	 * delete_index_from_blacklist()
+	 * Summary: Attempts to delete the provided index from the api_ids blacklist.
+	 * @param 	str 	$index 	The index wished to be deleted from the blacklist.
+	 * @return 	str 	$data  	The resulting data from the ->call_uri()
+	 **/
+	function delete_index_from_blacklist( $index ){
+
+		# Check for required parameters
+		if( !$index ){
+			$this->error_no = '0';
+			$this->error_desc = 'Index required';
+			return false;
+		}
+
+		# Prep params
+		$params = array('index' => $index);
+
+		# Attempt to delete index from whitelist
+		$data = $this->call_uri( $params, $this->blacklist_uri, 'delete' );
+
+		# Parse data and assign values to variables
+		$this->parse_data( $data );
+
+		return $data;
+	}
+
 
 	# ---------------------------------
 	## PRIVATE METHODS / HELPER METHODS
 	# ---------------------------------
-
 
 	/**
 	 * call_uri( $data, $uri, $verb )
@@ -314,7 +414,6 @@ class ZypCredsREST{
 		return $data;
 	}
 
-
 	/**
 	 * parse_data()
 	 * Summary: Calls either JSON or XML parse depending on what the accepted content type is.
@@ -330,7 +429,6 @@ class ZypCredsREST{
 		}
 	}
 
-
 	/**
 	 * parse_xml( $data )
 	 * Summary: Parses through the XML result and places all the values in the class variables.
@@ -343,13 +441,23 @@ class ZypCredsREST{
 
 		$obj = new SimpleXMLElement( $xml );
 		# Use (string) or (int) or SimpleXMLElement passes an object and causes SESSION fail.
-		$this->prepped_index = 	(string)$obj->index['prepped'];
-		$this->result_bool = 	(string)$obj->result['bool'];
-		$this->result_desc = 	(string)$obj->result['description'];
-		$this->error_no = 		(string)$obj->error['number'];
-		$this->error_desc = 	(string)$obj->error['description'];
-	}
+		$this->raw_index 		= (string)$obj->params['index'];
+		$this->raw_country 		= (string)$obj->params['country'];
+		$this->raw_ip 			= (string)$obj->params['ip'];
+		
+		$this->prepped_index 	= (string)$obj->index['prepped'];
+		$this->friendly_index 	= (string)$obj->index['friendly'];
+		
+		$this->token 			= (string)$obj->token['token'];
+		$this->token_expiration = (string)$obj->token['expiration'];
+		$this->token_bool 		= (string)$obj->token['bool'];
 
+		$this->result_bool 		= (string)$obj->result['bool'];
+		$this->result_desc 		= (string)$obj->result['description'];
+		$this->error_no 		= (string)$obj->error['number'];
+		$this->error_desc 		= (string)$obj->error['description'];
+		return true;
+	}
 
 	/**
 	 * parse_json
@@ -364,13 +472,24 @@ class ZypCredsREST{
 		$x = json_decode($json, true);
 		$x = $x['zypcreds'];
 
-		$this->prepped_index = 	(string)$x['index']['prepped'];
-		$this->result_bool = 	(string)$x['result']['bool'];
-		$this->result_desc = 	(string)$x['result']['description'];
-		$this->error_no = 		(string)$x['error']['number'];
-		$this->error_desc = 	(string)$x['error']['description'];
-	}
+		$this->raw_index 	= (string)$x['params']['index'];
+		$this->raw_country 	= (string)$x['params']['country'];
+		$this->raw_ip 		= (string)$x['params']['ip'];
 
+		$this->prepped_index 	= (string)$x['index']['prepped'];
+		$this->friendly_index 	= (string)$x['index']['friendly'];
+
+		$this->token 			= (string)$x['token']['token'];
+		$this->token_expiration = (string)$x['token']['expiration'];
+		$this->token_bool 		= (string)$x['token']['bool'];
+
+		$this->result_bool 	= (string)$x['result']['bool'];
+		$this->result_desc 	= (string)$x['result']['description'];
+		$this->error_no 	= (string)$x['error']['number'];
+		$this->error_desc 	= (string)$x['error']['description'];
+
+		return true;
+	}
 	
 	/**
 	 * create_hash()
