@@ -21,7 +21,7 @@
  *	add_to_blacklist( $index )
  *	delete_from_blacklist( $index )
  *
- *  ---
+ *  --- privates ---
  *  
  *	call_uri()
  *	parse_data()
