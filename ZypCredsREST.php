@@ -2,7 +2,7 @@
 /**
  * Class ZypCredsREST
  * Summary: A libary which handles requests for ZypCreds REST API. 
- * Version: 0.7
+ * Version: 0.8
  * Authors: Greg Kasbarian
  * Release Date Version 1.0: n/a
  *
@@ -40,10 +40,11 @@ class ZypCredsREST{
 	# ---
 
 	# URIs
-	private $verify_uri		= 'http://api.zypcreds.com/verify/';
-	private $token_uri 		= 'http://api.zypcreds.com/token/';
-	private $whitelist_uri 	= 'http://api.zypcreds.com/whitelist/';
-	private $blacklist_uri 	= 'http://api.zypcreds.com/blacklist/';
+	private $root_uri       = 'http://api.zypcreds.com/';
+	private $verify_uri		= $this->root_uri . 'verify/';
+	private $token_uri 		= $this->root_uri . 'token/';
+	private $whitelist_uri 	= $this->root_uri . 'whitelist/';
+	private $blacklist_uri 	= $this->root_uri . 'blacklist/';
 
 	# Values
 	public $raw_index;
@@ -64,7 +65,7 @@ class ZypCredsREST{
 	public $error_desc;
 	
 	# Settings
-	private $timeout = 30;
+	private $timeout = 30; # seconds
 	private $accept_type = 'json';	# Default return type
 
 	
@@ -107,11 +108,11 @@ class ZypCredsREST{
 	function request_verification( $index, $ip ){
 
 		# Check for required values
-		// if( !$index || !$ip ){
-		// 	$this->error_no = '1';
-		// 	$this->error = 'Missing required parameters.';
-		// 	return false;
-		// }
+		if( !$index || !$ip ){
+			$this->error_no = '1';
+			$this->error = 'Missing required parameters.';
+			return false;
+		}
 
 		# Prep params
 		$params = array( 'index' => $index, 'ip' => $ip );
